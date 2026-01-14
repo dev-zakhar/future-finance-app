@@ -1,0 +1,207 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
+
+.login-container, .card {
+  background: #242424;
+  padding: 2rem;
+  border-radius: 12px;
+  border: 1px solid #333;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+  width: 300px;
+  margin: 0 auto;
+  color: white;
+}
+
+h1 { font-size: 1.5em; margin-bottom: 1rem; }
+
+input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 4px;
+  border: 1px solid #444;
+  background: #1a1a1a;
+  color: white;
+  box-sizing: border-box; /* Важливо для відступів */
+}
+
+button {
+  width: 100%;
+  padding: 10px;
+  background-color: #646cff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+button:hover { background-color: #535bf2; }
+
+.dashboard {
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.logout-btn {
+    width: auto;
+    background-color: #d32f2f;
+    padding: 8px 16px;
+    font-size: 0.9em;
+}
+
+.accounts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+.account-card {
+    background: #333;
+    padding: 1.5rem;
+    border-radius: 12px;
+    text-align: left;
+    border: 1px solid #444;
+}
+
+.account-card h3 {
+    margin: 0 0 10px 0;
+    color: #aaa;
+    font-size: 1rem;
+}
+
+.balance {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #4caf50; /* Зелений колір грошей */
+}
+
+.currency {
+    font-size: 0.8rem;
+    color: #888;
+}
+
+.transaction-form-container {
+    margin-top: 2rem;
+    background: #2a2a2a;
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid #444;
+}
+
+.transaction-form-container h2 {
+    margin-top: 0;
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+}
+
+.transaction-form-container form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.transaction-form-container select,
+.transaction-form-container input {
+    padding: 10px;
+    background: #1a1a1a;
+    border: 1px solid #444;
+    color: white;
+    border-radius: 6px;
+}
+
+.add-btn {
+    background-color: #2196f3;
+    margin-top: 10px;
+}
+.add-btn:hover { background-color: #1976d2; }
+
+/* Кнопки типу транзакції */
+.type-selector {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.type-selector button {
+    flex: 1;
+    background: #333;
+    opacity: 0.5;
+    transition: all 0.2s;
+}
+
+.type-selector button.active {
+    opacity: 1;
+    transform: scale(1.02);
+}
+
+.type-selector button.active.expense {
+    background-color: #d32f2f; /* Червоний для витрат */
+}
+
+.type-selector button.active.income {
+    background-color: #388e3c; /* Зелений для доходів */
+}
+
+/* Історія */
+.history-container {
+    margin-top: 2rem;
+    text-align: left;
+}
+
+.history-list {
+    list-style: none;
+    padding: 0;
+}
+
+.history-item {
+    background: #2a2a2a;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-left: 4px solid #444;
+}
+
+.history-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.history-desc {
+    font-weight: bold;
+    font-size: 1.1em;
+}
+
+.history-account {
+    font-size: 0.8em;
+    color: #888;
+}
+
+.history-amount {
+    font-weight: bold;
+    font-size: 1.2em;
+}
+
+.history-amount.income { color: #4caf50; }
+.history-amount.expense { color: #ff4444; }
+
+.no-data {
+    text-align: center;
+    color: #666;
+}
