@@ -24,7 +24,7 @@ function App() {
   // Завантаження всіх даних
   const refreshData = () => {
     // 1. Рахунки
-    fetch('http://localhost:5000/accounts', {
+    fetch('https://future-finance-app.onrender.com/accounts', {
         headers: { 'Authorization': `Bearer ${token}` }
     })
     .then(res => res.json())
@@ -36,7 +36,7 @@ function App() {
     })
 
     // 2. Історія транзакцій <--- Новий запит
-    fetch('http://localhost:5000/transactions', {
+    fetch('https://future-finance-app.onrender.com/transactions', {
         headers: { 'Authorization': `Bearer ${token}` }
     })
     .then(res => res.json())
@@ -52,7 +52,7 @@ function App() {
   const handleLogin = async (e) => {
     e.preventDefault()
     try {
-      const response = await fetch('http://localhost:5000/login', {
+      const response = await fetch('https://future-finance-app.onrender.com/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -74,7 +74,7 @@ function App() {
     if (!amount || !selectedAccount) return alert("Введіть суму")
 
     try {
-        const response = await fetch('http://localhost:5000/transactions', {
+        const response = await fetch('https://future-finance-app.onrender.com/transactions', {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
