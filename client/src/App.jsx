@@ -4,9 +4,17 @@ import './AppStyles.css'
 function App() {
   // --- СТАНИ ---
   const [token, setToken] = useState(localStorage.getItem('token'))
-  const [user, setUser] = useState({ email: '', theme_color: '#2196f3', avatar_url: '' })
   
-  // view: 'auth' (вхід), 'dashboard' (фінанси), 'settings' (налаштування)
+  // 🔥 ВИПРАВЛЕННЯ: Читаємо збережені дані ОДРАЗУ, щоб не було сірого екрану
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem('userData')
+    try {
+        return saved ? JSON.parse(saved) : { email: '', theme_color: '#2196f3', avatar_url: '' }
+    } catch (e) {
+        return { email: '', theme_color: '#2196f3', avatar_url: '' }
+    }
+  })
+  
   const [view, setView] = useState(token ? 'dashboard' : 'auth')
   const [isRegistering, setIsRegistering] = useState(false)
 
@@ -22,14 +30,13 @@ function App() {
   const [accounts, setAccounts] = useState([])
   const [transactions, setTransactions] = useState([])
 
-  // ⚠️ ВАЖЛИВО: Ваша адреса сервера
+  // Ваша адреса сервера
   const API_URL = 'https://future-finance-app.onrender.com'
 
   // --- ЕФЕКТИ ---
   useEffect(() => {
     if (token) {
-        const savedUser = localStorage.getItem('userData')
-        if (savedUser) setUser(JSON.parse(savedUser))
+        // Пробуємо оновити дані з сервера (якщо є інтернет)
         refreshData()
     }
   }, [token])
@@ -39,6 +46,7 @@ function App() {
     localStorage.removeItem('token')
     localStorage.removeItem('userData')
     setToken(null)
+    setUser({ email: '', theme_color: '#2196f3', avatar_url: '' }) // Скидаємо юзера
     setView('auth')
     setAccounts([])
     setTransactions([])
@@ -53,10 +61,12 @@ function App() {
               if (data.length > 0 && !selectedAcc) setSelectedAcc(data[0].id)
           }
       })
+      .catch(err => console.error("Помилка завантаження рахунків", err))
     
     fetch(`${API_URL}/transactions`, { headers: { 'Authorization': `Bearer ${token}` } })
       .then(res => res.json())
       .then(data => Array.isArray(data) && setTransactions(data))
+      .catch(err => console.error("Помилка завантаження історії", err))
   }
 
   const handleAuth = async (e) => {
@@ -76,6 +86,7 @@ function App() {
             setIsRegistering(false)
         } else {
             localStorage.setItem('token', data.token)
+            // Зберігаємо дані про юзера, щоб потім не було сірого екрану
             localStorage.setItem('userData', JSON.stringify(data.user))
             setToken(data.token)
             setUser(data.user)
@@ -131,17 +142,19 @@ function App() {
     } catch(err) { alert('Помилка') }
   }
 
-  // --- КОМПОНЕНТИ ІНТЕРФЕЙСУ ---
+  // --- КОМПОНЕНТИ ---
 
-  // Шапка (Header)
   const Header = () => (
     <header style={{ borderColor: '#444' }}>
         <div className="user-info" onClick={() => setView('settings')}>
             {user.avatar_url ? 
                 <img src={user.avatar_url} className="avatar-small" /> : 
-                <div className="avatar-placeholder" style={{background: user.theme_color}}>{user.email[0].toUpperCase()}</div>
+                // 🔥 ЗАХИСТ: Перевіряємо чи є email, перед тим як брати букву
+                <div className="avatar-placeholder" style={{background: user.theme_color}}>
+                    {user.email ? user.email[0].toUpperCase() : '?'}
+                </div>
             }
-            <span>{user.email}</span>
+            <span>{user.email || 'Користувач'}</span>
         </div>
         <nav>
             <button onClick={() => setView('dashboard')} style={{opacity: view === 'dashboard' ? 1 : 0.5}}>🏠</button>
@@ -151,7 +164,6 @@ function App() {
     </header>
   )
 
-  // 1. ЕКРАН АВТОРИЗАЦІЇ
   if (!token || view === 'auth') {
     return (
       <div className="login-container" style={{ borderColor: user.theme_color }}>
@@ -170,7 +182,6 @@ function App() {
     )
   }
 
-  // 2. ЕКРАН НАЛАШТУВАНЬ
   if (view === 'settings') {
     return (
         <div className="dashboard">
@@ -195,7 +206,6 @@ function App() {
     )
   }
 
-  // 3. ЕКРАН ДАШБОРДУ
   return (
     <div className="dashboard">
         <Header />
