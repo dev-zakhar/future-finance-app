@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react'
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { 
+  PieChart, Pie, Cell, 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, 
+  Tooltip, Legend, ResponsiveContainer 
+} from 'recharts'
 import './AppStyles.css'
 
 function App() {
@@ -15,7 +19,7 @@ function App() {
     }
   })
   
-  const [view, setView] = useState(token ? 'dashboard' : 'auth')
+  const [view, setView] = useState(token ? 'dashboard' : 'auth') // dashboard | stats | settings | auth
   const [isRegistering, setIsRegistering] = useState(false)
 
   // Поля форм
@@ -36,14 +40,14 @@ function App() {
 
   const API_URL = 'https://future-finance-app.onrender.com'
 
-  // Категорії
   const CATEGORIES = {
       expense: ['🛒 Продукти', '🍔 Кафе', '🚗 Транспорт', '🏠 Дім', '💊 Здоров\'я', '🎮 Розваги', '🛍️ Шопінг', '📡 Зв\'язок', '🤔 Інше'],
       income: ['💰 Зарплата', '🎁 Подарунок', '💸 Кешбек', '📈 Інвестиції', '🤔 Інше']
   }
 
-  // Кольори для графіку
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF4560', '#1e88e5', '#d81b60', '#8e24aa'];
+  // Кольори для графіків
+  const COLORS_EXPENSE = ['#FF8042', '#FFBB28', '#FF4560', '#AF19FF', '#d81b60'];
+  const COLORS_INCOME = ['#00C49F', '#0088FE', '#1e88e5', '#8e24aa'];
 
   // --- ЕФЕКТИ ---
   useEffect(() => {
@@ -74,12 +78,12 @@ function App() {
               if (data.length > 0 && !selectedAcc) setSelectedAcc(data[0].id)
           }
       })
-      .catch(err => console.error("Error fetching accounts:", err))
+      .catch(err => console.error("Error accounts:", err))
     
     fetch(`${API_URL}/transactions`, { headers: { 'Authorization': `Bearer ${token}` } })
       .then(res => res.json())
       .then(data => Array.isArray(data) && setTransactions(data))
-      .catch(err => console.error("Error fetching transactions:", err))
+      .catch(err => console.error("Error transactions:", err))
   }
 
   const handleAuth = async (e) => {
@@ -114,18 +118,13 @@ function App() {
     try {
         const res = await fetch(`${API_URL}/transactions`, {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ account_id: selectedAcc, amount, type, description: desc, category, date })
         })
         if (res.ok) {
             setAmount(''); setDesc(''); setDate(new Date().toISOString().split('T')[0]);
             refreshData()
-        } else {
-            alert("Помилка збереження.")
-        }
+        } else { alert("Помилка збереження.") }
     } catch (err) { console.error(err) }
   }
 
@@ -169,27 +168,47 @@ function App() {
     } catch(err) { alert('Помилка') }
   }
 
-  // Рахуємо баланс
+  // --- МАТЕМАТИКА ---
   const safeAccounts = Array.isArray(accounts) ? accounts : []
   const totalBalance = safeAccounts.reduce((sum, acc) => sum + Number(acc.balance || 0), 0).toFixed(2)
 
-  // --- ЛОГІКА ДЛЯ ГРАФІКА ---
-  // 1. Беремо тільки витрати (все, що не входить в список доходів)
-  const incomeCats = new Set(CATEGORIES.income);
+  // Фільтруємо транзакції за ПОТОЧНИЙ місяць
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
   
-  // 2. Групуємо транзакції по категоріях
-  const chartData = transactions
-    .filter(t => !incomeCats.has(t.category)) // Фільтруємо доходи
+  const monthlyTransactions = transactions.filter(t => {
+      const d = new Date(t.date);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+  });
+
+  // 1. Дані для Витрат
+  const expenseData = monthlyTransactions
+    .filter(t => new Set(CATEGORIES.expense).has(t.category))
     .reduce((acc, curr) => {
-        const catName = curr.category || 'Інше';
-        const existing = acc.find(item => item.name === catName);
-        if (existing) {
-            existing.value += Number(curr.amount);
-        } else {
-            acc.push({ name: catName, value: Number(curr.amount) });
-        }
+        const cat = curr.category;
+        const exist = acc.find(item => item.name === cat);
+        exist ? exist.value += Number(curr.amount) : acc.push({ name: cat, value: Number(curr.amount) });
         return acc;
     }, []);
+
+  // 2. Дані для Доходів
+  const incomeData = monthlyTransactions
+    .filter(t => new Set(CATEGORIES.income).has(t.category))
+    .reduce((acc, curr) => {
+        const cat = curr.category;
+        const exist = acc.find(item => item.name === cat);
+        exist ? exist.value += Number(curr.amount) : acc.push({ name: cat, value: Number(curr.amount) });
+        return acc;
+    }, []);
+
+  // 3. Змішана статистика (Всього дохід vs Всього витрат)
+  const totalIncomeMonth = incomeData.reduce((sum, item) => sum + item.value, 0);
+  const totalExpenseMonth = expenseData.reduce((sum, item) => sum + item.value, 0);
+  
+  const mixedData = [
+      { name: 'Дохід', value: totalIncomeMonth },
+      { name: 'Витрати', value: totalExpenseMonth }
+  ];
 
   // --- КОМПОНЕНТИ ---
   const Header = () => (
@@ -197,16 +216,14 @@ function App() {
         <div className="user-info" onClick={() => setView('settings')}>
             {user.avatar_url ? 
                 <img src={user.avatar_url} className="avatar-small" /> : 
-                <div className="avatar-placeholder" style={{background: user.theme_color}}>
-                    {(user.email && user.email[0]) ? user.email[0].toUpperCase() : '?'}
-                </div>
+                <div className="avatar-placeholder" style={{background: user.theme_color}}>{(user.email && user.email[0]) ? user.email[0].toUpperCase() : '?'}</div>
             }
-            <span>{user.email || 'User'}</span>
         </div>
-        <nav>
-            <button onClick={() => setView('dashboard')} style={{opacity: view === 'dashboard' ? 1 : 0.5}}>🏠</button>
-            <button onClick={() => setView('settings')} style={{opacity: view === 'settings' ? 1 : 0.5}}>⚙️</button>
-            <button onClick={logout} className={`logout-btn ${!user.is_dark_mode ? 'logout-light' : ''}`}>Вийти</button>
+        <nav style={{display: 'flex', alignItems: 'center'}}>
+            <button onClick={() => setView('dashboard')} style={{opacity: view === 'dashboard' ? 1 : 0.5, fontSize: '1.5rem'}} title="Головна">🏠</button>
+            <button onClick={() => setView('stats')} style={{opacity: view === 'stats' ? 1 : 0.5, fontSize: '1.5rem'}} title="Статистика">📊</button>
+            <button onClick={() => setView('settings')} style={{opacity: view === 'settings' ? 1 : 0.5, fontSize: '1.5rem'}} title="Налаштування">⚙️</button>
+            <button onClick={logout} className={`logout-btn ${!user.is_dark_mode ? 'logout-light' : ''}`} style={{marginLeft: '10px'}}>Вийти</button>
         </nav>
     </header>
   )
@@ -227,6 +244,82 @@ function App() {
     )
   }
 
+  // --- ЕКРАН СТАТИСТИКИ (НОВИЙ) ---
+  if (view === 'stats') {
+      const monthName = new Date().toLocaleString('uk-UA', { month: 'long' });
+      const chartStyle = {
+        background: user.is_dark_mode ? '#2a2a2a' : '#fff', 
+        padding: '20px', 
+        borderRadius: '12px', 
+        marginBottom: '20px',
+        border: user.is_dark_mode ? '1px solid #444' : '1px solid #ddd'
+      };
+
+      return (
+        <div className="dashboard">
+            <Header />
+            <h2 style={{textTransform: 'capitalize'}}>Статистика: {monthName}</h2>
+
+            {/* 1. ГРАФІК ВИТРАТ */}
+            <div className="chart-card" style={chartStyle}>
+                <h3 style={{textAlign: 'center', color: '#ff4d4d'}}>🔴 Витрати</h3>
+                {expenseData.length > 0 ? (
+                    <div style={{ width: '100%', height: 250 }}>
+                        <ResponsiveContainer>
+                            <PieChart>
+                                <Pie data={expenseData} cx="50%" cy="50%" outerRadius={70} fill="#8884d8" dataKey="value" label>
+                                    {expenseData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS_EXPENSE[index % COLORS_EXPENSE.length]} />)}
+                                </Pie>
+                                <Tooltip />
+                                <Legend />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                ) : <p style={{textAlign:'center', opacity:0.5}}>Немає витрат цього місяця</p>}
+            </div>
+
+            {/* 2. ГРАФІК ДОХОДІВ */}
+            <div className="chart-card" style={chartStyle}>
+                <h3 style={{textAlign: 'center', color: '#00c853'}}>🟢 Доходи</h3>
+                {incomeData.length > 0 ? (
+                    <div style={{ width: '100%', height: 250 }}>
+                        <ResponsiveContainer>
+                            <PieChart>
+                                <Pie data={incomeData} cx="50%" cy="50%" outerRadius={70} fill="#8884d8" dataKey="value" label>
+                                    {incomeData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS_INCOME[index % COLORS_INCOME.length]} />)}
+                                </Pie>
+                                <Tooltip />
+                                <Legend />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                ) : <p style={{textAlign:'center', opacity:0.5}}>Немає доходів цього місяця</p>}
+            </div>
+
+            {/* 3. ЗМІШАНИЙ ГРАФІК */}
+            <div className="chart-card" style={chartStyle}>
+                <h3 style={{textAlign: 'center'}}>⚖️ Баланс місяця</h3>
+                <div style={{ width: '100%', height: 250 }}>
+                    <ResponsiveContainer>
+                        <BarChart data={mixedData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+                            <XAxis dataKey="name" stroke={user.is_dark_mode ? "#fff" : "#000"} />
+                            <YAxis stroke={user.is_dark_mode ? "#fff" : "#000"} />
+                            <Tooltip contentStyle={{backgroundColor: '#333', borderColor: '#444', color: '#fff'}} />
+                            <Bar dataKey="value" name="Сума">
+                                {mixedData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={index === 0 ? '#00c853' : '#ff4d4d'} />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+        </div>
+      )
+  }
+
+  // --- ЕКРАН НАЛАШТУВАНЬ ---
   if (view === 'settings') {
     return (
         <div className="dashboard">
@@ -259,17 +352,16 @@ function App() {
     )
   }
 
+  // --- ДАШБОРД (Тільки записи і баланс) ---
   return (
     <div className="dashboard">
         <Header />
         
-        {/* Загальний баланс */}
         <div className={`total-balance-card ${user.is_dark_mode ? '' : 'light-card'}`} style={{borderColor: user.theme_color}}>
             <h3>Загальні кошти 💰</h3>
             <div className="total-amount" style={{ color: Number(totalBalance) < 0 ? '#f44336' : '#4caf50' }}>{totalBalance} <small>UAH</small></div>
         </div>
 
-        {/* Рахунки */}
         <div className={`accounts-container ${user.is_dark_mode ? '' : 'light-card'}`}>
             <h2 style={{marginTop: 0}}>Рахунки</h2>
             <div className="accounts-grid">
@@ -282,41 +374,6 @@ function App() {
             </div>
         </div>
 
-        {/* 🔥 ГРАФІК ВИТРАТ (З'явиться, тільки якщо є витрати) 🔥 */}
-        {chartData.length > 0 && (
-            <div className={`chart-container ${user.is_dark_mode ? '' : 'light-card'}`} style={{
-                background: user.is_dark_mode ? '#2a2a2a' : '#fff', 
-                padding: '20px', 
-                borderRadius: '12px', 
-                marginBottom: '20px',
-                border: user.is_dark_mode ? '1px solid #444' : '1px solid #ddd'
-            }}>
-                <h3 style={{textAlign: 'center', marginBottom: '0'}}>Куди пішли гроші? 💸</h3>
-                <div style={{ width: '100%', height: 300 }}>
-                    <ResponsiveContainer>
-                        <PieChart>
-                            <Pie
-                                data={chartData}
-                                cx="50%"
-                                cy="50%"
-                                outerRadius={80}
-                                fill="#8884d8"
-                                dataKey="value"
-                                label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}
-                            >
-                                {chartData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                            </Pie>
-                            <Tooltip />
-                            <Legend />
-                        </PieChart>
-                    </ResponsiveContainer>
-                </div>
-            </div>
-        )}
-
-        {/* Форма */}
         <div className={`transaction-form-container ${user.is_dark_mode ? '' : 'light-card'}`} style={{borderColor: user.theme_color}}>
             <form onSubmit={handleTransaction}>
                 <div className="type-selector">
@@ -340,7 +397,6 @@ function App() {
             </form>
         </div>
 
-        {/* Історія */}
         <div className="history-container">
             <h3>Історія</h3>
             <ul className="history-list">
