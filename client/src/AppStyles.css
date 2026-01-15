@@ -658,3 +658,42 @@ input[type="file"] {
 .light-card .custom-file-upload:hover { 
     background-color: #e0e0e0; 
 }
+
+/* --- ЗАГАЛЬНИЙ БАЛАНС --- */
+.total-balance-card {
+    background: linear-gradient(135deg, #1e1e1e 0%, #252525 100%);
+    text-align: center;
+    padding: 30px;
+    border-radius: 16px;
+    margin-bottom: 25px;
+    border: 1px solid #444;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+/* Світла тема для загального балансу */
+.light-card.total-balance-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border-color: #ddd;
+}
+
+.total-balance-card h3 {
+    margin: 0 0 10px 0;
+    font-size: 1.1rem;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.total-amount {
+    font-size: 2.5rem; /* Дуже великий шрифт */
+    font-weight: 800;
+    color: #4caf50; /* Зелений колір успіху */
+    text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.total-amount small {
+    font-size: 1rem;
+    color: #888;
+    font-weight: normal;
+    margin-left: 5px;
+}
