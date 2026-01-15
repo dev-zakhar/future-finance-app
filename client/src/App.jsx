@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import './AppStyles.css'
 
 function App() {
+  // --- СТАНИ ---
   const [token, setToken] = useState(localStorage.getItem('token'))
   
   const [user, setUser] = useState(() => {
@@ -20,27 +21,27 @@ function App() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   
-  // Дані транзакції
+  // Дані для транзакцій
   const [amount, setAmount] = useState('')
-  const [desc, setDesc] = useState('') // Це тепер коментар
+  const [desc, setDesc] = useState('')
   const [selectedAcc, setSelectedAcc] = useState('')
   const [type, setType] = useState('expense')
-  
-  // 🔥 НОВІ ПОЛЯ
   const [category, setCategory] = useState('Інше')
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]) // Сьогоднішня дата yyyy-mm-dd
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
 
+  // Дані з сервера
   const [accounts, setAccounts] = useState([])
   const [transactions, setTransactions] = useState([])
 
   const API_URL = 'https://future-finance-app.onrender.com'
 
-  // Список категорій (можна розширювати)
+  // Категорії
   const CATEGORIES = {
       expense: ['🛒 Продукти', '🍔 Кафе', '🚗 Транспорт', '🏠 Дім', '💊 Здоров\'я', '🎮 Розваги', '🛍️ Шопінг', '📡 Зв\'язок', '🤔 Інше'],
       income: ['💰 Зарплата', '🎁 Подарунок', '💸 Кешбек', '📈 Інвестиції', '🤔 Інше']
   }
 
+  // --- ЕФЕКТИ ---
   useEffect(() => {
     if (token) refreshData()
   }, [token])
@@ -49,6 +50,7 @@ function App() {
     document.body.className = user.is_dark_mode ? 'dark-theme' : 'light-theme'
   }, [user.is_dark_mode])
 
+  // --- ФУНКЦІЇ ---
   const logout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('userData')
@@ -68,10 +70,12 @@ function App() {
               if (data.length > 0 && !selectedAcc) setSelectedAcc(data[0].id)
           }
       })
+      .catch(err => console.error("Error fetching accounts:", err))
     
     fetch(`${API_URL}/transactions`, { headers: { 'Authorization': `Bearer ${token}` } })
       .then(res => res.json())
       .then(data => Array.isArray(data) && setTransactions(data))
+      .catch(err => console.error("Error fetching transactions:", err))
   }
 
   const handleAuth = async (e) => {
@@ -110,32 +114,25 @@ function App() {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            // 🔥 Відправляємо нові дані
-            body: JSON.stringify({ 
-                account_id: selectedAcc, 
-                amount, 
-                type, 
-                description: desc,
-                category,
-                date
-            })
+            body: JSON.stringify({ account_id: selectedAcc, amount, type, description: desc, category, date })
         })
         if (res.ok) {
-            setAmount(''); setDesc(''); 
-            setDate(new Date().toISOString().split('T')[0]); // Скидаємо дату на сьогодні
+            setAmount(''); setDesc(''); setDate(new Date().toISOString().split('T')[0]);
             refreshData()
+        } else {
+            alert("Помилка збереження. Перевірте, чи ви оновили базу даних (SQL).")
         }
     } catch (err) { console.error(err) }
   }
 
   const handleDeleteTransaction = async (id) => {
-      if(!confirm("Видалити цей запис? Гроші повернуться на рахунок.")) return;
+      if(!confirm("Видалити запис?")) return;
       try {
           const res = await fetch(`${API_URL}/transactions/${id}`, {
               method: 'DELETE',
               headers: { 'Authorization': `Bearer ${token}` }
           })
-          if (res.ok) refreshData()
+          if(res.ok) refreshData()
       } catch (err) { alert('Помилка видалення') }
   }
 
@@ -150,30 +147,27 @@ function App() {
 
   const handleSaveSettings = async () => {
     try {
-        const res = await fetch(`${API_URL}/user/settings`, {
+        await fetch(`${API_URL}/user/settings`, {
             method: 'PUT',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify(user)
         })
-        if (res.ok) {
-            alert('Збережено!')
-            localStorage.setItem('userData', JSON.stringify(user))
-        }
+        alert('Збережено!')
+        localStorage.setItem('userData', JSON.stringify(user))
     } catch (err) { alert('Помилка') }
   }
 
   const handleDeleteAccount = async () => {
-    if(!confirm("Видалити акаунт назавжди?")) return;
+    if(!confirm("Видалити акаунт?")) return;
     try {
         await fetch(`${API_URL}/user/delete`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } })
         logout()
     } catch(err) { alert('Помилка') }
   }
 
-  const totalBalance = (accounts || []).reduce((sum, acc) => sum + Number(acc.balance || 0), 0).toFixed(2)
+  // Рахуємо баланс (із захистом від помилок)
+  const safeAccounts = Array.isArray(accounts) ? accounts : []
+  const totalBalance = safeAccounts.reduce((sum, acc) => sum + Number(acc.balance || 0), 0).toFixed(2)
 
   // --- КОМПОНЕНТИ ---
   const Header = () => (
@@ -181,7 +175,9 @@ function App() {
         <div className="user-info" onClick={() => setView('settings')}>
             {user.avatar_url ? 
                 <img src={user.avatar_url} className="avatar-small" /> : 
-                <div className="avatar-placeholder" style={{background: user.theme_color}}>{user.email ? user.email[0].toUpperCase() : '?'}</div>
+                <div className="avatar-placeholder" style={{background: user.theme_color}}>
+                    {(user.email && user.email[0]) ? user.email[0].toUpperCase() : '?'}
+                </div>
             }
             <span>{user.email || 'User'}</span>
         </div>
@@ -218,7 +214,7 @@ function App() {
                 <label>Аватарка:</label>
                 <div className="avatar-upload-row">
                     <div className="avatar-preview-wrapper">
-                         {user.avatar_url ? <img src={user.avatar_url} className="avatar-preview" /> : <div className="avatar-placeholder-large" style={{background: user.theme_color}}>{user.email[0]}</div>}
+                         {user.avatar_url ? <img src={user.avatar_url} className="avatar-preview" /> : <div className="avatar-placeholder-large" style={{background: user.theme_color}}>{(user.email && user.email[0]) ? user.email[0].toUpperCase() : '?'}</div>}
                     </div>
                     <label htmlFor="file-upload" className="custom-file-upload">📷 Змінити фото</label>
                     <input id="file-upload" type="file" accept="image/*" onChange={handleFileChange} />
@@ -241,19 +237,22 @@ function App() {
     )
   }
 
+  // ДАШБОРД (Тут твої рахунки!)
   return (
     <div className="dashboard">
         <Header />
         
+        {/* Загальний баланс */}
         <div className={`total-balance-card ${user.is_dark_mode ? '' : 'light-card'}`} style={{borderColor: user.theme_color}}>
             <h3>Загальні кошти 💰</h3>
             <div className="total-amount" style={{ color: Number(totalBalance) < 0 ? '#f44336' : '#4caf50' }}>{totalBalance} <small>UAH</small></div>
         </div>
 
+        {/* 🛑 ТУТ МАЮТЬ БУТИ РАХУНКИ 🛑 */}
         <div className={`accounts-container ${user.is_dark_mode ? '' : 'light-card'}`}>
             <h2 style={{marginTop: 0}}>Рахунки</h2>
             <div className="accounts-grid">
-                {accounts.map(acc => (
+                {safeAccounts.map(acc => (
                     <div key={acc.id} className={`account-card ${user.is_dark_mode ? '' : 'light-card'}`} style={{borderColor: user.theme_color}}>
                         <h3>{acc.name}</h3>
                         <div className="balance" style={{color: user.is_dark_mode ? '#fff' : '#000'}}>{acc.balance} <small>UAH</small></div>
@@ -269,19 +268,18 @@ function App() {
                     <button type="button" className={type === 'income' ? 'active income' : ''} onClick={() => setType('income')}>📈 Дохід</button>
                 </div>
                 
-                {/* 🔥 НОВІ ПОЛЯ: Дата і Категорія */}
                 <div style={{display: 'flex', gap: '10px'}}>
                     <input type="date" value={date} onChange={e => setDate(e.target.value)} required />
                     <select value={category} onChange={e => setCategory(e.target.value)}>
-                        {CATEGORIES[type].map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                        {(CATEGORIES[type] || []).map(cat => <option key={cat} value={cat}>{cat}</option>)}
                     </select>
                 </div>
 
                 <select value={selectedAcc} onChange={e => setSelectedAcc(e.target.value)}>
-                    {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
+                    {safeAccounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
                 </select>
                 <input type="number" placeholder="Сума" value={amount} onChange={e => setAmount(e.target.value)} />
-                <input type="text" placeholder="Коментар (необов'язково)" value={desc} onChange={e => setDesc(e.target.value)} />
+                <input type="text" placeholder="Коментар" value={desc} onChange={e => setDesc(e.target.value)} />
                 <button type="submit" className="add-btn" style={{backgroundColor: user.theme_color}}>Додати запис</button>
             </form>
         </div>
@@ -302,7 +300,6 @@ function App() {
                         </div>
                         <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
                             <span className={t.amount < 0 ? 'expense' : 'income'}>{t.amount}</span>
-                            {/* 🔥 КНОПКА ВИДАЛИТИ */}
                             <button onClick={() => handleDeleteTransaction(t.id)} className="delete-icon-btn">🗑️</button>
                         </div>
                     </li>
