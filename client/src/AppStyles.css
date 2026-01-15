@@ -543,12 +543,17 @@ nav button {
 
 /* --- SETTINGS & NEW STYLES --- */
 
-.avatar-preview {
+.avatar-preview, .avatar-placeholder-large {
     width: 80px;
     height: 80px;
     border-radius: 50%;
     object-fit: cover;
     border: 3px solid #555;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    
+    /* 🔥 ОСЬ ЦЕЙ РЯДОК ВИПРАВЛЯЄ БАГ 🔥 */
+    flex-shrink: 0; 
+    /* Це означає: "Не стискайся, навіть якщо мало місця" */
 }
 
 .theme-toggle {
