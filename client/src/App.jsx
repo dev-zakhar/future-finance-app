@@ -50,7 +50,6 @@ function App() {
   const COLORS_INCOME = ['#00C49F', '#0088FE', '#1e88e5', '#8e24aa'];
 
   // --- ЕФЕКТИ ---
-// --- ЕФЕКТИ ---
   useEffect(() => {
     if (token) refreshData()
   }, [token])
@@ -59,7 +58,6 @@ function App() {
     document.body.className = user.is_dark_mode ? 'dark-theme' : 'light-theme'
   }, [user.is_dark_mode])
 
-  // 🔥 ДОДАЙТЕ ЦЕЙ БЛОК:
   // Коли міняємо тип (Витрата <-> Дохід), ставимо першу категорію зі списку
   useEffect(() => {
       if (CATEGORIES[type] && CATEGORIES[type].length > 0) {
@@ -181,14 +179,8 @@ function App() {
   const safeAccounts = Array.isArray(accounts) ? accounts : []
   const totalBalance = safeAccounts.reduce((sum, acc) => sum + Number(acc.balance || 0), 0).toFixed(2)
 
-  // Фільтруємо транзакції за ПОТОЧНИЙ місяць
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
-  
-  const monthlyTransactions = transactions.filter(t => {
-      const d = new Date(t.date);
-      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-  });
+  // 🔥 ВАЖЛИВО: Беремо ВСІ транзакції (відключили фільтр по місяцях)
+  const monthlyTransactions = transactions; 
 
   // 1. Дані для Витрат
   const expenseData = monthlyTransactions
@@ -253,9 +245,8 @@ function App() {
     )
   }
 
-  // --- ЕКРАН СТАТИСТИКИ (НОВИЙ) ---
+  // --- ЕКРАН СТАТИСТИКИ ---
   if (view === 'stats') {
-      const monthName = new Date().toLocaleString('uk-UA', { month: 'long' });
       const chartStyle = {
         background: user.is_dark_mode ? '#2a2a2a' : '#fff', 
         padding: '20px', 
@@ -267,7 +258,7 @@ function App() {
       return (
         <div className="dashboard">
             <Header />
-            <h2 style={{textTransform: 'capitalize'}}>Статистика: {monthName}</h2>
+            <h2 style={{textTransform: 'capitalize'}}>Статистика (Весь час)</h2>
 
             {/* 1. ГРАФІК ВИТРАТ */}
             <div className="chart-card" style={chartStyle}>
@@ -284,7 +275,7 @@ function App() {
                             </PieChart>
                         </ResponsiveContainer>
                     </div>
-                ) : <p style={{textAlign:'center', opacity:0.5}}>Немає витрат цього місяця</p>}
+                ) : <p style={{textAlign:'center', opacity:0.5}}>Немає витрат</p>}
             </div>
 
             {/* 2. ГРАФІК ДОХОДІВ */}
@@ -302,12 +293,12 @@ function App() {
                             </PieChart>
                         </ResponsiveContainer>
                     </div>
-                ) : <p style={{textAlign:'center', opacity:0.5}}>Немає доходів цього місяця</p>}
+                ) : <p style={{textAlign:'center', opacity:0.5}}>Немає доходів</p>}
             </div>
 
             {/* 3. ЗМІШАНИЙ ГРАФІК */}
             <div className="chart-card" style={chartStyle}>
-                <h3 style={{textAlign: 'center'}}>⚖️ Баланс місяця</h3>
+                <h3 style={{textAlign: 'center'}}>⚖️ Баланс</h3>
                 <div style={{ width: '100%', height: 250 }}>
                     <ResponsiveContainer>
                         <BarChart data={mixedData}>
