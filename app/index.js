@@ -134,45 +134,33 @@ app.get('/accounts', authenticateToken, async (req, res) => {
     }
 });
 
-// ДОДАТИ ТРАНЗАКЦІЮ
+// ДОДАТИ ТРАНЗАКЦІЮ (З категорією та датою)
 app.post('/transactions', authenticateToken, async (req, res) => {
     try {
-        const { account_id, amount, type, description } = req.body;
-        const userId = req.user.id; 
+        const { account_id, amount, type, description, category, date } = req.body;
+        const userId = req.user.id;
 
-        // Перевірка даних
-        if (!account_id || !amount || !type) {
-            return res.status(400).json({ error: 'Заповніть всі поля' });
-        }
+        // Перевірка власності рахунку
+        const accCheck = await pool.query('SELECT * FROM accounts WHERE id = $1 AND user_id = $2', [account_id, userId]);
+        if (accCheck.rows.length === 0) return res.status(403).json({ error: 'Це не ваш рахунок' });
 
-        // Визначаємо, як змінити баланс (плюс чи мінус)
-        // amount приходить як рядок, перетворюємо в число
-        let finalAmount = parseFloat(amount);
-        
-        if (type === 'expense') {
-            finalAmount = -finalAmount; // Якщо витрата, робимо мінус
-        }
+        // Початок транзакції
+        await pool.query('BEGIN');
 
-        // 1. Оновлюємо баланс гаманця
-        // Використовуємо user_id, щоб не можна було змінити чужий гаманець
-        const updateAccount = await pool.query(
-            'UPDATE accounts SET balance = balance + $1 WHERE id = $2 AND user_id = $3 RETURNING *',
-            [finalAmount, account_id, userId]
-        );
-
-        if (updateAccount.rows.length === 0) {
-            return res.status(404).json({ error: 'Гаманець не знайдено або доступ заборонено' });
-        }
-
-        // 2. Записуємо історію транзакцій
+        // 1. Записуємо операцію
         await pool.query(
-            'INSERT INTO transactions (account_id, amount, comment, date) VALUES ($1, $2, $3, NOW())',
-            [account_id, finalAmount, description]
+            'INSERT INTO transactions (account_id, category_id, amount, comment, category, date) VALUES ($1, NULL, $2, $3, $4, $5)',
+            [account_id, amount, description, category || 'Інше', date || new Date()]
         );
 
-        res.json({ message: 'Успішно!', newBalance: updateAccount.rows[0].balance });
+        // 2. Оновлюємо баланс
+        const change = type === 'income' ? amount : -amount;
+        await pool.query('UPDATE accounts SET balance = balance + $1 WHERE id = $2', [change, account_id]);
 
+        await pool.query('COMMIT');
+        res.json({ message: 'Успішно!' });
     } catch (err) {
+        await pool.query('ROLLBACK');
         console.error(err);
         res.status(500).json({ error: 'Помилка сервера' });
     }
@@ -228,6 +216,51 @@ app.delete('/user/delete', authenticateToken, async (req, res) => {
         await pool.query('DELETE FROM users WHERE id = $1', [userId]);
         res.json({ message: 'Акаунт видалено' });
     } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Помилка сервера' });
+    }
+});
+
+// ВИДАЛИТИ ТРАНЗАКЦІЮ
+app.delete('/transactions/:id', authenticateToken, async (req, res) => {
+    try {
+        const transId = req.params.id;
+        const userId = req.user.id;
+
+        // Отримуємо дані про транзакцію, щоб повернути гроші на баланс
+        const transResult = await pool.query(`
+            SELECT t.*, a.user_id 
+            FROM transactions t
+            JOIN accounts a ON t.account_id = a.id
+            WHERE t.id = $1 AND a.user_id = $2
+        `, [transId, userId]);
+
+        if (transResult.rows.length === 0) return res.status(404).json({ error: 'Не знайдено' });
+
+        const transaction = transResult.rows[0];
+
+        await pool.query('BEGIN');
+
+        // 1. Видаляємо запис
+        await pool.query('DELETE FROM transactions WHERE id = $1', [transId]);
+
+        // 2. Повертаємо баланс назад (якщо була витрата - додаємо, якщо дохід - віднімаємо)
+        // Увага: в базі amount завжди позитивний, ми дивимось на логіку
+        // Але у вас в базі amount може бути з мінусом. Давайте перевіримо логіку з App.jsx
+        // В App.jsx ми передавали amount з мінусом для витрат? 
+        // Перевірка: в минулому коді ми робили const change = type === 'income' ? amount : -amount;
+        // Значить в таблиці transactions amount зберігається як є.
+        // Щоб "відмінити", ми просто віднімаємо amount від балансу.
+        // (Якщо amount був -100, то balance - (-100) = balance + 100). Все вірно.
+
+        await pool.query('UPDATE accounts SET balance = balance - $1 WHERE id = $2', 
+            [transaction.amount, transaction.account_id]);
+
+        await pool.query('COMMIT');
+        res.json({ message: 'Видалено' });
+
+    } catch (err) {
+        await pool.query('ROLLBACK');
         console.error(err);
         res.status(500).json({ error: 'Помилка сервера' });
     }

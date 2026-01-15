@@ -697,3 +697,20 @@ input[type="file"] {
     font-weight: normal;
     margin-left: 5px;
 }
+
+/* Кнопка видалення транзакції */
+.delete-icon-btn {
+    background: transparent;
+    border: none;
+    font-size: 1.2rem;
+    padding: 5px;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: 0.2s;
+}
+
+.delete-icon-btn:hover {
+    opacity: 1;
+    transform: scale(1.2);
+    background: transparent; /* Щоб не ставала синьою */
+}
