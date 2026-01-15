@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import './AppStyles.css'
 
 function App() {
@@ -40,6 +41,9 @@ function App() {
       expense: ['🛒 Продукти', '🍔 Кафе', '🚗 Транспорт', '🏠 Дім', '💊 Здоров\'я', '🎮 Розваги', '🛍️ Шопінг', '📡 Зв\'язок', '🤔 Інше'],
       income: ['💰 Зарплата', '🎁 Подарунок', '💸 Кешбек', '📈 Інвестиції', '🤔 Інше']
   }
+
+  // Кольори для графіку
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF4560', '#1e88e5', '#d81b60', '#8e24aa'];
 
   // --- ЕФЕКТИ ---
   useEffect(() => {
@@ -120,7 +124,7 @@ function App() {
             setAmount(''); setDesc(''); setDate(new Date().toISOString().split('T')[0]);
             refreshData()
         } else {
-            alert("Помилка збереження. Перевірте, чи ви оновили базу даних (SQL).")
+            alert("Помилка збереження.")
         }
     } catch (err) { console.error(err) }
   }
@@ -165,9 +169,27 @@ function App() {
     } catch(err) { alert('Помилка') }
   }
 
-  // Рахуємо баланс (із захистом від помилок)
+  // Рахуємо баланс
   const safeAccounts = Array.isArray(accounts) ? accounts : []
   const totalBalance = safeAccounts.reduce((sum, acc) => sum + Number(acc.balance || 0), 0).toFixed(2)
+
+  // --- ЛОГІКА ДЛЯ ГРАФІКА ---
+  // 1. Беремо тільки витрати (все, що не входить в список доходів)
+  const incomeCats = new Set(CATEGORIES.income);
+  
+  // 2. Групуємо транзакції по категоріях
+  const chartData = transactions
+    .filter(t => !incomeCats.has(t.category)) // Фільтруємо доходи
+    .reduce((acc, curr) => {
+        const catName = curr.category || 'Інше';
+        const existing = acc.find(item => item.name === catName);
+        if (existing) {
+            existing.value += Number(curr.amount);
+        } else {
+            acc.push({ name: catName, value: Number(curr.amount) });
+        }
+        return acc;
+    }, []);
 
   // --- КОМПОНЕНТИ ---
   const Header = () => (
@@ -237,7 +259,6 @@ function App() {
     )
   }
 
-  // ДАШБОРД (Тут твої рахунки!)
   return (
     <div className="dashboard">
         <Header />
@@ -248,7 +269,7 @@ function App() {
             <div className="total-amount" style={{ color: Number(totalBalance) < 0 ? '#f44336' : '#4caf50' }}>{totalBalance} <small>UAH</small></div>
         </div>
 
-        {/* 🛑 ТУТ МАЮТЬ БУТИ РАХУНКИ 🛑 */}
+        {/* Рахунки */}
         <div className={`accounts-container ${user.is_dark_mode ? '' : 'light-card'}`}>
             <h2 style={{marginTop: 0}}>Рахунки</h2>
             <div className="accounts-grid">
@@ -261,6 +282,41 @@ function App() {
             </div>
         </div>
 
+        {/* 🔥 ГРАФІК ВИТРАТ (З'явиться, тільки якщо є витрати) 🔥 */}
+        {chartData.length > 0 && (
+            <div className={`chart-container ${user.is_dark_mode ? '' : 'light-card'}`} style={{
+                background: user.is_dark_mode ? '#2a2a2a' : '#fff', 
+                padding: '20px', 
+                borderRadius: '12px', 
+                marginBottom: '20px',
+                border: user.is_dark_mode ? '1px solid #444' : '1px solid #ddd'
+            }}>
+                <h3 style={{textAlign: 'center', marginBottom: '0'}}>Куди пішли гроші? 💸</h3>
+                <div style={{ width: '100%', height: 300 }}>
+                    <ResponsiveContainer>
+                        <PieChart>
+                            <Pie
+                                data={chartData}
+                                cx="50%"
+                                cy="50%"
+                                outerRadius={80}
+                                fill="#8884d8"
+                                dataKey="value"
+                                label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}
+                            >
+                                {chartData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                            </Pie>
+                            <Tooltip />
+                            <Legend />
+                        </PieChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+        )}
+
+        {/* Форма */}
         <div className={`transaction-form-container ${user.is_dark_mode ? '' : 'light-card'}`} style={{borderColor: user.theme_color}}>
             <form onSubmit={handleTransaction}>
                 <div className="type-selector">
@@ -284,6 +340,7 @@ function App() {
             </form>
         </div>
 
+        {/* Історія */}
         <div className="history-container">
             <h3>Історія</h3>
             <ul className="history-list">
