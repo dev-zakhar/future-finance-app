@@ -135,35 +135,35 @@ app.get('/accounts', authenticateToken, async (req, res) => {
 });
 
 // ДОДАТИ ТРАНЗАКЦІЮ (З категорією та датою)
-// ДОДАТИ ТРАНЗАКЦІЮ (Оновлений код)
+// ДОДАТИ ТРАНЗАКЦІЮ (ВИПРАВЛЕНО)
 app.post('/transactions', authenticateToken, async (req, res) => {
     try {
-        // 1. Отримуємо нові поля: category та date
+        // 1. Отримуємо category та date від сайту
         const { account_id, amount, type, description, category, date } = req.body;
         const userId = req.user.id;
 
+        // Перевірка, чи це ваш рахунок
         const accCheck = await pool.query('SELECT * FROM accounts WHERE id = $1 AND user_id = $2', [account_id, userId]);
         if (accCheck.rows.length === 0) return res.status(403).json({ error: 'Це не ваш рахунок' });
 
         await pool.query('BEGIN');
 
-        // 2. 🔥 ВАЖЛИВО: Записуємо category і date у базу
+        // 2. 🔥 ГОЛОВНЕ: Записуємо category і date у базу даних!
+        // Раніше тут не було цих полів, тому сервер їх губив.
         await pool.query(
             'INSERT INTO transactions (account_id, category_id, amount, comment, category, date) VALUES ($1, NULL, $2, $3, $4, $5)',
             [account_id, amount, description, category || 'Інше', date || new Date()]
         );
 
         // 3. Оновлюємо баланс
-        // Якщо це дохід (income) - додаємо, якщо витрата - віднімаємо
         const change = type === 'income' ? amount : -amount;
-
         await pool.query('UPDATE accounts SET balance = balance + $1 WHERE id = $2', [change, account_id]);
 
         await pool.query('COMMIT');
         res.json({ message: 'Успішно!' });
     } catch (err) {
         await pool.query('ROLLBACK');
-        console.error(err);
+        console.error("Помилка при додаванні:", err); // Виводимо помилку в консоль
         res.status(500).json({ error: 'Помилка сервера' });
     }
 });
