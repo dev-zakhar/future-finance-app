@@ -89,16 +89,16 @@ app.post('/login', async (req, res) => {
         const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
         // ТУТ ЗМІНИ: додаємо avatar_url та theme_color
-        res.json({ 
-            message: 'Вхід успішний!', 
-            token, 
-            user: { 
-                id: user.id, 
+        res.json({
+            message: 'Вхід успішний!',
+            token,
+            user: {
+                id: user.id,
                 email: user.email,
                 avatar_url: user.avatar_url,
                 theme_color: user.theme_color,
                 is_dark_mode: user.is_dark_mode,
-            } 
+            }
         });
 
     } catch (err) {
@@ -135,26 +135,28 @@ app.get('/accounts', authenticateToken, async (req, res) => {
 });
 
 // ДОДАТИ ТРАНЗАКЦІЮ (З категорією та датою)
+// ДОДАТИ ТРАНЗАКЦІЮ (Оновлений код)
 app.post('/transactions', authenticateToken, async (req, res) => {
     try {
+        // 1. Отримуємо нові поля: category та date
         const { account_id, amount, type, description, category, date } = req.body;
         const userId = req.user.id;
 
-        // Перевірка власності рахунку
         const accCheck = await pool.query('SELECT * FROM accounts WHERE id = $1 AND user_id = $2', [account_id, userId]);
         if (accCheck.rows.length === 0) return res.status(403).json({ error: 'Це не ваш рахунок' });
 
-        // Початок транзакції
         await pool.query('BEGIN');
 
-        // 1. Записуємо операцію
+        // 2. 🔥 ВАЖЛИВО: Записуємо category і date у базу
         await pool.query(
             'INSERT INTO transactions (account_id, category_id, amount, comment, category, date) VALUES ($1, NULL, $2, $3, $4, $5)',
             [account_id, amount, description, category || 'Інше', date || new Date()]
         );
 
-        // 2. Оновлюємо баланс
+        // 3. Оновлюємо баланс
+        // Якщо це дохід (income) - додаємо, якщо витрата - віднімаємо
         const change = type === 'income' ? amount : -amount;
+
         await pool.query('UPDATE accounts SET balance = balance + $1 WHERE id = $2', [change, account_id]);
 
         await pool.query('COMMIT');
@@ -165,7 +167,6 @@ app.post('/transactions', authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Помилка сервера' });
     }
 });
-
 // ОТРИМАТИ ОСТАННІ ТРАНЗАКЦІЇ
 app.get('/transactions', authenticateToken, async (req, res) => {
     try {
@@ -179,7 +180,7 @@ app.get('/transactions', authenticateToken, async (req, res) => {
             ORDER BY t.date DESC
             LIMIT 10
         `;
-        
+
         const result = await pool.query(query, [userId]);
         res.json(result.rows);
 
@@ -253,7 +254,7 @@ app.delete('/transactions/:id', authenticateToken, async (req, res) => {
         // Щоб "відмінити", ми просто віднімаємо amount від балансу.
         // (Якщо amount був -100, то balance - (-100) = balance + 100). Все вірно.
 
-        await pool.query('UPDATE accounts SET balance = balance - $1 WHERE id = $2', 
+        await pool.query('UPDATE accounts SET balance = balance - $1 WHERE id = $2',
             [transaction.amount, transaction.account_id]);
 
         await pool.query('COMMIT');

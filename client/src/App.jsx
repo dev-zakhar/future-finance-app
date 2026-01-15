@@ -50,6 +50,7 @@ function App() {
   const COLORS_INCOME = ['#00C49F', '#0088FE', '#1e88e5', '#8e24aa'];
 
   // --- ЕФЕКТИ ---
+// --- ЕФЕКТИ ---
   useEffect(() => {
     if (token) refreshData()
   }, [token])
@@ -57,6 +58,14 @@ function App() {
   useEffect(() => {
     document.body.className = user.is_dark_mode ? 'dark-theme' : 'light-theme'
   }, [user.is_dark_mode])
+
+  // 🔥 ДОДАЙТЕ ЦЕЙ БЛОК:
+  // Коли міняємо тип (Витрата <-> Дохід), ставимо першу категорію зі списку
+  useEffect(() => {
+      if (CATEGORIES[type] && CATEGORIES[type].length > 0) {
+          setCategory(CATEGORIES[type][0]);
+      }
+  }, [type]);
 
   // --- ФУНКЦІЇ ---
   const logout = () => {
