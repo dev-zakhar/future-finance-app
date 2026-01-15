@@ -73,33 +73,31 @@ app.post('/register', async (req, res) => {
     }
 });
 
-// ВХІД (LOGIN)
+// ВХІД (ОНОВЛЕНИЙ)
 app.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
-
-        // 1. Шукаємо користувача
         const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
         const user = userResult.rows[0];
 
-        if (!user) {
-            return res.status(400).json({ error: 'Користувача не знайдено' });
-        }
+        if (!user) return res.status(400).json({ error: 'Користувача не знайдено' });
 
-        // 2. Перевіряємо пароль
         const isMatch = await bcrypt.compare(password, user.password_hash);
-        if (!isMatch) {
-            return res.status(400).json({ error: 'Невірний пароль' });
-        }
+        if (!isMatch) return res.status(400).json({ error: 'Невірний пароль' });
 
-        // 3. Генеруємо токен (пропуск)
-        const token = jwt.sign(
-            { id: user.id }, // Що зашиваємо в токен
-            process.env.JWT_SECRET, // Секретний ключ
-            { expiresIn: '1h' } // Термін дії (1 година)
-        );
+        const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
-        res.json({ message: 'Вхід успішний!', token, user: { id: user.id, email: user.email } });
+        // ТУТ ЗМІНИ: додаємо avatar_url та theme_color
+        res.json({ 
+            message: 'Вхід успішний!', 
+            token, 
+            user: { 
+                id: user.id, 
+                email: user.email,
+                avatar_url: user.avatar_url,
+                theme_color: user.theme_color
+            } 
+        });
 
     } catch (err) {
         console.error(err);
@@ -195,6 +193,37 @@ app.get('/transactions', authenticateToken, async (req, res) => {
         const result = await pool.query(query, [userId]);
         res.json(result.rows);
 
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Помилка сервера' });
+    }
+});
+
+// ОНОВИТИ НАЛАШТУВАННЯ (Колір і Аватар)
+app.put('/user/settings', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { avatar_url, theme_color } = req.body;
+
+        await pool.query(
+            'UPDATE users SET avatar_url = $1, theme_color = $2 WHERE id = $3',
+            [avatar_url, theme_color, userId]
+        );
+
+        res.json({ message: 'Налаштування збережено' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Помилка сервера' });
+    }
+});
+
+// ВИДАЛИТИ АКАУНТ
+app.delete('/user/delete', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        // Видаляємо користувача (транзакції видаляться автоматично через CASCADE)
+        await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+        res.json({ message: 'Акаунт видалено' });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Помилка сервера' });

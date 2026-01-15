@@ -1,47 +1,54 @@
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 2rem;
+    text-align: center;
+    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
 }
 
-.login-container, .card {
-  background: #242424;
-  padding: 2rem;
-  border-radius: 12px;
-  border: 1px solid #333;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-  width: 300px;
-  margin: 0 auto;
-  color: white;
+.login-container,
+.card {
+    background: #242424;
+    padding: 2rem;
+    border-radius: 12px;
+    border: 1px solid #333;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    width: 300px;
+    margin: 0 auto;
+    color: white;
 }
 
-h1 { font-size: 1.5em; margin-bottom: 1rem; }
+h1 {
+    font-size: 1.5em;
+    margin-bottom: 1rem;
+}
 
 input {
-  width: 100%;
-  padding: 10px;
-  margin-bottom: 10px;
-  border-radius: 4px;
-  border: 1px solid #444;
-  background: #1a1a1a;
-  color: white;
-  box-sizing: border-box; /* Важливо для відступів */
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    border: 1px solid #444;
+    background: #1a1a1a;
+    color: white;
+    box-sizing: border-box;
+    /* Важливо для відступів */
 }
 
 button {
-  width: 100%;
-  padding: 10px;
-  background-color: #646cff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
+    width: 100%;
+    padding: 10px;
+    background-color: #646cff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
 }
 
-button:hover { background-color: #535bf2; }
+button:hover {
+    background-color: #535bf2;
+}
 
 .dashboard {
     width: 100%;
@@ -86,7 +93,8 @@ header {
 .balance {
     font-size: 1.5rem;
     font-weight: bold;
-    color: #4caf50; /* Зелений колір грошей */
+    color: #4caf50;
+    /* Зелений колір грошей */
 }
 
 .currency {
@@ -127,7 +135,10 @@ header {
     background-color: #2196f3;
     margin-top: 10px;
 }
-.add-btn:hover { background-color: #1976d2; }
+
+.add-btn:hover {
+    background-color: #1976d2;
+}
 
 /* Кнопки типу транзакції */
 .type-selector {
@@ -149,11 +160,13 @@ header {
 }
 
 .type-selector button.active.expense {
-    background-color: #d32f2f; /* Червоний для витрат */
+    background-color: #d32f2f;
+    /* Червоний для витрат */
 }
 
 .type-selector button.active.income {
-    background-color: #388e3c; /* Зелений для доходів */
+    background-color: #388e3c;
+    /* Зелений для доходів */
 }
 
 /* Історія */
@@ -198,10 +211,108 @@ header {
     font-size: 1.2em;
 }
 
-.history-amount.income { color: #4caf50; }
-.history-amount.expense { color: #ff4444; }
+.history-amount.income {
+    color: #4caf50;
+}
+
+.history-amount.expense {
+    color: #ff4444;
+}
 
 .no-data {
     text-align: center;
     color: #666;
+}
+
+/* Додаткові стилі для налаштувань */
+.switch-auth {
+    margin-top: 15px;
+    cursor: pointer;
+    text-decoration: underline;
+    color: #888;
+    font-size: 0.9em;
+}
+
+/* Header */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #333;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.avatar-small,
+.avatar-placeholder {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.avatar-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+}
+
+nav button {
+    background: none;
+    border: none;
+    font-size: 1.4rem;
+    margin-left: 10px;
+    cursor: pointer;
+}
+
+/* Налаштування */
+.settings-card {
+    background: #2a2a2a;
+    padding: 20px;
+    border-radius: 12px;
+    text-align: left;
+}
+
+.settings-card label {
+    display: block;
+    margin-top: 15px;
+    color: #aaa;
+}
+
+.color-picker {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.color-circle {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+
+.color-circle.selected {
+    border-color: white;
+    transform: scale(1.1);
+}
+
+.delete-btn {
+    background-color: #d32f2f;
+    margin-top: 10px;
+    width: 100%;
+}
+
+.delete-btn:hover {
+    background-color: #b71c1c;
 }

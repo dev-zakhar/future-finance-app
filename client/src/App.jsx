@@ -2,169 +2,242 @@ import { useState, useEffect } from 'react'
 import './AppStyles.css'
 
 function App() {
+  // --- СТАНИ ---
   const [token, setToken] = useState(localStorage.getItem('token'))
+  const [user, setUser] = useState({ email: '', theme_color: '#2196f3', avatar_url: '' })
+  
+  // view: 'auth' (вхід), 'dashboard' (фінанси), 'settings' (налаштування)
+  const [view, setView] = useState(token ? 'dashboard' : 'auth')
+  const [isRegistering, setIsRegistering] = useState(false)
+
+  // Поля форм
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  
-  const [accounts, setAccounts] = useState([])
-  const [transactions, setTransactions] = useState([]) // <--- Новий стан для історії
-  
   const [amount, setAmount] = useState('')
-  const [description, setDescription] = useState('')
-  const [selectedAccount, setSelectedAccount] = useState('')
+  const [desc, setDesc] = useState('')
+  const [selectedAcc, setSelectedAcc] = useState('')
   const [type, setType] = useState('expense')
 
+  // Дані
+  const [accounts, setAccounts] = useState([])
+  const [transactions, setTransactions] = useState([])
+
+  // ⚠️ ВАЖЛИВО: Ваша адреса сервера
+  const API_URL = 'https://future-finance-app.onrender.com'
+
+  // --- ЕФЕКТИ ---
+  useEffect(() => {
+    if (token) {
+        const savedUser = localStorage.getItem('userData')
+        if (savedUser) setUser(JSON.parse(savedUser))
+        refreshData()
+    }
+  }, [token])
+
+  // --- ФУНКЦІЇ ---
   const logout = () => {
     localStorage.removeItem('token')
+    localStorage.removeItem('userData')
     setToken(null)
+    setView('auth')
     setAccounts([])
     setTransactions([])
   }
 
-  // Завантаження всіх даних
   const refreshData = () => {
-    // 1. Рахунки
-    fetch('https://future-finance-app.onrender.com/accounts', {
-        headers: { 'Authorization': `Bearer ${token}` }
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (Array.isArray(data)) {
-            setAccounts(data)
-            if (data.length > 0 && !selectedAccount) setSelectedAccount(data[0].id)
-        }
-    })
-
-    // 2. Історія транзакцій <--- Новий запит
-    fetch('https://future-finance-app.onrender.com/transactions', {
-        headers: { 'Authorization': `Bearer ${token}` }
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (Array.isArray(data)) setTransactions(data)
-    })
+    fetch(`${API_URL}/accounts`, { headers: { 'Authorization': `Bearer ${token}` } })
+      .then(res => res.json())
+      .then(data => {
+          if (Array.isArray(data)) {
+              setAccounts(data)
+              if (data.length > 0 && !selectedAcc) setSelectedAcc(data[0].id)
+          }
+      })
+    
+    fetch(`${API_URL}/transactions`, { headers: { 'Authorization': `Bearer ${token}` } })
+      .then(res => res.json())
+      .then(data => Array.isArray(data) && setTransactions(data))
   }
 
-  useEffect(() => {
-    if (token) refreshData()
-  }, [token])
-
-  const handleLogin = async (e) => {
+  const handleAuth = async (e) => {
     e.preventDefault()
+    const endpoint = isRegistering ? '/register' : '/login'
     try {
-      const response = await fetch('https://future-finance-app.onrender.com/login', {
+      const res = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       })
-      const data = await response.json()
-      if (response.ok) {
-        localStorage.setItem('token', data.token)
-        setToken(data.token)
-      } else {
-        alert(data.error)
-      }
-    } catch (error) {
-      alert('Помилка з\'єднання')
-    }
+      const data = await res.json()
+      
+      if (res.ok) {
+        if (isRegistering) {
+            alert('Реєстрація успішна! Тепер увійдіть.')
+            setIsRegistering(false)
+        } else {
+            localStorage.setItem('token', data.token)
+            localStorage.setItem('userData', JSON.stringify(data.user))
+            setToken(data.token)
+            setUser(data.user)
+            setView('dashboard')
+        }
+      } else { alert(data.error) }
+    } catch (err) { alert('Помилка з\'єднання') }
   }
 
   const handleTransaction = async (e) => {
     e.preventDefault()
-    if (!amount || !selectedAccount) return alert("Введіть суму")
-
+    if (!amount || !selectedAcc) return alert("Введіть суму")
     try {
-        const response = await fetch('https://future-finance-app.onrender.com/transactions', {
+        const res = await fetch(`${API_URL}/transactions`, {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({
-                account_id: selectedAccount,
-                amount: amount,
-                type: type,
-                description: description
-            })
+            body: JSON.stringify({ account_id: selectedAcc, amount, type, description: desc })
         })
-
-        if (response.ok) {
-            setAmount('')
-            setDescription('')
-            refreshData() // Оновлюємо і баланс, і історію
-        } else {
-            alert("Помилка")
+        if (res.ok) {
+            setAmount(''); setDesc(''); refreshData()
         }
-    } catch (error) {
-        console.error(error)
-    }
+    } catch (err) { console.error(err) }
   }
 
-  if (token) {
+  const handleSaveSettings = async () => {
+    try {
+        const res = await fetch(`${API_URL}/user/settings`, {
+            method: 'PUT',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ avatar_url: user.avatar_url, theme_color: user.theme_color })
+        })
+        if (res.ok) {
+            alert('Збережено!')
+            localStorage.setItem('userData', JSON.stringify(user))
+        }
+    } catch (err) { alert('Помилка') }
+  }
+
+  const handleDeleteAccount = async () => {
+    if(!confirm("Видалити акаунт назавжди?")) return;
+    try {
+        const res = await fetch(`${API_URL}/user/delete`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        if(res.ok) { alert('Акаунт видалено'); logout() }
+    } catch(err) { alert('Помилка') }
+  }
+
+  // --- КОМПОНЕНТИ ІНТЕРФЕЙСУ ---
+
+  // Шапка (Header)
+  const Header = () => (
+    <header style={{ borderColor: '#444' }}>
+        <div className="user-info" onClick={() => setView('settings')}>
+            {user.avatar_url ? 
+                <img src={user.avatar_url} className="avatar-small" /> : 
+                <div className="avatar-placeholder" style={{background: user.theme_color}}>{user.email[0].toUpperCase()}</div>
+            }
+            <span>{user.email}</span>
+        </div>
+        <nav>
+            <button onClick={() => setView('dashboard')} style={{opacity: view === 'dashboard' ? 1 : 0.5}}>🏠</button>
+            <button onClick={() => setView('settings')} style={{opacity: view === 'settings' ? 1 : 0.5}}>⚙️</button>
+            <button onClick={logout} style={{background: '#333', fontSize: '0.8em'}}>Вихід</button>
+        </nav>
+    </header>
+  )
+
+  // 1. ЕКРАН АВТОРИЗАЦІЇ
+  if (!token || view === 'auth') {
     return (
-      <div className="dashboard">
-        <header>
-            <h1>Мої фінанси 💰</h1>
-            <button onClick={logout} className="logout-btn">Вийти</button>
-        </header>
-
-        <div className="accounts-grid">
-            {accounts.map(acc => (
-                <div key={acc.id} className="account-card">
-                    <h3>{acc.name}</h3>
-                    <div className="balance" style={{ color: acc.balance < 0 ? '#ff4444' : '#4caf50' }}>
-                        {acc.balance} <span className="currency">UAH</span>
-                    </div>
-                </div>
-            ))}
-        </div>
-
-        <div className="transaction-form-container">
-            <h3>Додати операцію</h3>
-            <form onSubmit={handleTransaction}>
-                <div className="type-selector">
-                    <button type="button" className={type === 'expense' ? 'active expense' : ''} onClick={() => setType('expense')}>📉 Витрата</button>
-                    <button type="button" className={type === 'income' ? 'active income' : ''} onClick={() => setType('income')}>📈 Дохід</button>
-                </div>
-                <select value={selectedAccount} onChange={e => setSelectedAccount(e.target.value)}>
-                    {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
-                </select>
-                <input type="number" placeholder="Сума" value={amount} onChange={e => setAmount(e.target.value)} />
-                <input type="text" placeholder="Коментар" value={description} onChange={e => setDescription(e.target.value)} />
-                <button type="submit" className="add-btn">Додати</button>
-            </form>
-        </div>
-
-        {/* СПИСОК ІСТОРІЇ */}
-        <div className="history-container">
-            <h3>Історія операцій</h3>
-            <ul className="history-list">
-                {transactions.map(t => (
-                    <li key={t.id} className="history-item">
-                        <div className="history-info">
-                            <span className="history-desc">{t.comment || 'Без коментаря'}</span>
-                            <span className="history-account">{t.account_name}</span>
-                        </div>
-                        <div className={`history-amount ${t.amount < 0 ? 'expense' : 'income'}`}>
-                            {t.amount > 0 ? '+' : ''}{t.amount} UAH
-                        </div>
-                    </li>
-                ))}
-                {transactions.length === 0 && <p className="no-data">Тут поки пусто</p>}
-            </ul>
-        </div>
+      <div className="login-container" style={{ borderColor: user.theme_color }}>
+        <h1 style={{ color: user.theme_color }}>{isRegistering ? 'Реєстрація' : 'Вхід'}</h1>
+        <form onSubmit={handleAuth}>
+            <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
+            <input type="password" placeholder="Пароль" value={password} onChange={e => setPassword(e.target.value)} />
+            <button type="submit" style={{ backgroundColor: user.theme_color }}>
+                {isRegistering ? 'Створити акаунт' : 'Увійти'}
+            </button>
+        </form>
+        <p className="switch-auth" onClick={() => setIsRegistering(!isRegistering)}>
+            {isRegistering ? 'Вже є акаунт? Увійти' : 'Немає акаунту? Зареєструватися'}
+        </p>
       </div>
     )
   }
 
+  // 2. ЕКРАН НАЛАШТУВАНЬ
+  if (view === 'settings') {
+    return (
+        <div className="dashboard">
+            <Header />
+            <h2>Налаштування</h2>
+            <div className="settings-card">
+                <label>Посилання на аватарку:</label>
+                <input type="text" value={user.avatar_url || ''} onChange={e => setUser({...user, avatar_url: e.target.value})} />
+                
+                <label>Колір теми:</label>
+                <div className="color-picker">
+                    {['#2196f3', '#4caf50', '#ff9800', '#e91e63', '#9c27b0'].map(c => (
+                        <div key={c} className={`color-circle ${user.theme_color === c ? 'selected' : ''}`}
+                             style={{backgroundColor: c}} onClick={() => setUser({...user, theme_color: c})} />
+                    ))}
+                </div>
+                
+                <button onClick={handleSaveSettings} style={{backgroundColor: user.theme_color, width: '100%', marginTop: '20px'}}>Зберегти</button>
+                <button onClick={handleDeleteAccount} className="delete-btn">Видалити акаунт</button>
+            </div>
+        </div>
+    )
+  }
+
+  // 3. ЕКРАН ДАШБОРДУ
   return (
-    <div className="login-container">
-      <h1>Вхід у "Майбутнє" 🚀</h1>
-      <form onSubmit={handleLogin}>
-        <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
-        <input type="password" placeholder="Пароль" value={password} onChange={e => setPassword(e.target.value)} />
-        <button type="submit">Увійти</button>
-      </form>
+    <div className="dashboard">
+        <Header />
+        
+        <div className="accounts-grid">
+            {accounts.map(acc => (
+                <div key={acc.id} className="account-card" style={{borderColor: user.theme_color}}>
+                    <h3>{acc.name}</h3>
+                    <div className="balance">{acc.balance} <small>UAH</small></div>
+                </div>
+            ))}
+        </div>
+
+        <div className="transaction-form-container" style={{borderColor: user.theme_color}}>
+            <form onSubmit={handleTransaction}>
+                <div className="type-selector">
+                    <button type="button" className={type === 'expense' ? 'active expense' : ''} onClick={() => setType('expense')}>📉</button>
+                    <button type="button" className={type === 'income' ? 'active income' : ''} onClick={() => setType('income')}>📈</button>
+                </div>
+                <select value={selectedAcc} onChange={e => setSelectedAcc(e.target.value)}>
+                    {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
+                </select>
+                <input type="number" placeholder="Сума" value={amount} onChange={e => setAmount(e.target.value)} />
+                <input type="text" placeholder="Коментар" value={desc} onChange={e => setDesc(e.target.value)} />
+                <button type="submit" className="add-btn" style={{backgroundColor: user.theme_color}}>ОК</button>
+            </form>
+        </div>
+
+        <div className="history-container">
+            <h3>Історія</h3>
+            <ul className="history-list">
+                {transactions.map(t => (
+                    <li key={t.id} className="history-item">
+                        <div>
+                            <b>{t.comment}</b><br/>
+                            <small>{t.account_name}</small>
+                        </div>
+                        <span className={t.amount < 0 ? 'expense' : 'income'}>{t.amount}</span>
+                    </li>
+                ))}
+            </ul>
+        </div>
     </div>
   )
 }
