@@ -10,7 +10,8 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
-app.use(express.json()); // Дозволяє серверу розуміти JSON дані
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Підключення до БД
 const pool = new Pool({
@@ -95,7 +96,8 @@ app.post('/login', async (req, res) => {
                 id: user.id, 
                 email: user.email,
                 avatar_url: user.avatar_url,
-                theme_color: user.theme_color
+                theme_color: user.theme_color,
+                is_dark_mode: user.is_dark_mode,
             } 
         });
 
@@ -199,15 +201,16 @@ app.get('/transactions', authenticateToken, async (req, res) => {
     }
 });
 
-// ОНОВИТИ НАЛАШТУВАННЯ (Колір і Аватар)
+// ОНОВИТИ НАЛАШТУВАННЯ
 app.put('/user/settings', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.id;
-        const { avatar_url, theme_color } = req.body;
+        // Додали is_dark_mode
+        const { avatar_url, theme_color, is_dark_mode } = req.body;
 
         await pool.query(
-            'UPDATE users SET avatar_url = $1, theme_color = $2 WHERE id = $3',
-            [avatar_url, theme_color, userId]
+            'UPDATE users SET avatar_url = $1, theme_color = $2, is_dark_mode = $3 WHERE id = $4',
+            [avatar_url, theme_color, is_dark_mode, userId]
         );
 
         res.json({ message: 'Налаштування збережено' });

@@ -5,13 +5,12 @@ function App() {
   // --- СТАНИ ---
   const [token, setToken] = useState(localStorage.getItem('token'))
   
-  // 🔥 ВИПРАВЛЕННЯ: Читаємо збережені дані ОДРАЗУ, щоб не було сірого екрану
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('userData')
     try {
-        return saved ? JSON.parse(saved) : { email: '', theme_color: '#2196f3', avatar_url: '' }
+        return saved ? JSON.parse(saved) : { email: '', theme_color: '#2196f3', avatar_url: '', is_dark_mode: true }
     } catch (e) {
-        return { email: '', theme_color: '#2196f3', avatar_url: '' }
+        return { email: '', theme_color: '#2196f3', avatar_url: '', is_dark_mode: true }
     }
   })
   
@@ -26,27 +25,27 @@ function App() {
   const [selectedAcc, setSelectedAcc] = useState('')
   const [type, setType] = useState('expense')
 
-  // Дані
   const [accounts, setAccounts] = useState([])
   const [transactions, setTransactions] = useState([])
 
-  // Ваша адреса сервера
   const API_URL = 'https://future-finance-app.onrender.com'
 
   // --- ЕФЕКТИ ---
   useEffect(() => {
-    if (token) {
-        // Пробуємо оновити дані з сервера (якщо є інтернет)
-        refreshData()
-    }
+    if (token) refreshData()
   }, [token])
+
+  // Зміна теми на льоту (додає клас до <body>)
+  useEffect(() => {
+    document.body.className = user.is_dark_mode ? 'dark-theme' : 'light-theme'
+  }, [user.is_dark_mode])
 
   // --- ФУНКЦІЇ ---
   const logout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('userData')
     setToken(null)
-    setUser({ email: '', theme_color: '#2196f3', avatar_url: '' }) // Скидаємо юзера
+    setUser({ email: '', theme_color: '#2196f3', avatar_url: '', is_dark_mode: true })
     setView('auth')
     setAccounts([])
     setTransactions([])
@@ -61,12 +60,10 @@ function App() {
               if (data.length > 0 && !selectedAcc) setSelectedAcc(data[0].id)
           }
       })
-      .catch(err => console.error("Помилка завантаження рахунків", err))
     
     fetch(`${API_URL}/transactions`, { headers: { 'Authorization': `Bearer ${token}` } })
       .then(res => res.json())
       .then(data => Array.isArray(data) && setTransactions(data))
-      .catch(err => console.error("Помилка завантаження історії", err))
   }
 
   const handleAuth = async (e) => {
@@ -82,11 +79,10 @@ function App() {
       
       if (res.ok) {
         if (isRegistering) {
-            alert('Реєстрація успішна! Тепер увійдіть.')
+            alert('Реєстрація успішна! Увійдіть.')
             setIsRegistering(false)
         } else {
             localStorage.setItem('token', data.token)
-            // Зберігаємо дані про юзера, щоб потім не було сірого екрану
             localStorage.setItem('userData', JSON.stringify(data.user))
             setToken(data.token)
             setUser(data.user)
@@ -114,6 +110,21 @@ function App() {
     } catch (err) { console.error(err) }
   }
 
+  // Обробка завантаження картинки
+  const handleFileChange = (e) => {
+      const file = e.target.files[0]
+      if (file) {
+          if (file.size > 2000000) return alert("Файл завеликий! Максимум 2MB.")
+          
+          const reader = new FileReader()
+          reader.onloadend = () => {
+              // Перетворюємо картинку в текст і зберігаємо в стан
+              setUser({ ...user, avatar_url: reader.result })
+          }
+          reader.readAsDataURL(file)
+      }
+  }
+
   const handleSaveSettings = async () => {
     try {
         const res = await fetch(`${API_URL}/user/settings`, {
@@ -122,7 +133,11 @@ function App() {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ avatar_url: user.avatar_url, theme_color: user.theme_color })
+            body: JSON.stringify({ 
+                avatar_url: user.avatar_url, 
+                theme_color: user.theme_color,
+                is_dark_mode: user.is_dark_mode 
+            })
         })
         if (res.ok) {
             alert('Збережено!')
@@ -142,31 +157,28 @@ function App() {
     } catch(err) { alert('Помилка') }
   }
 
-  // --- КОМПОНЕНТИ ---
-
   const Header = () => (
-    <header style={{ borderColor: '#444' }}>
+    <header style={{ borderColor: user.is_dark_mode ? '#444' : '#ddd' }}>
         <div className="user-info" onClick={() => setView('settings')}>
             {user.avatar_url ? 
                 <img src={user.avatar_url} className="avatar-small" /> : 
-                // 🔥 ЗАХИСТ: Перевіряємо чи є email, перед тим як брати букву
                 <div className="avatar-placeholder" style={{background: user.theme_color}}>
                     {user.email ? user.email[0].toUpperCase() : '?'}
                 </div>
             }
-            <span>{user.email || 'Користувач'}</span>
+            <span>{user.email || 'User'}</span>
         </div>
         <nav>
             <button onClick={() => setView('dashboard')} style={{opacity: view === 'dashboard' ? 1 : 0.5}}>🏠</button>
             <button onClick={() => setView('settings')} style={{opacity: view === 'settings' ? 1 : 0.5}}>⚙️</button>
-            <button onClick={logout} style={{background: '#333', fontSize: '0.8em'}}>Вихід</button>
+            <button onClick={logout} className="logout-btn">Вихід</button>
         </nav>
     </header>
   )
 
   if (!token || view === 'auth') {
     return (
-      <div className="login-container" style={{ borderColor: user.theme_color }}>
+      <div className={`login-container ${user.is_dark_mode ? '' : 'light-card'}`} style={{ borderColor: user.theme_color }}>
         <h1 style={{ color: user.theme_color }}>{isRegistering ? 'Реєстрація' : 'Вхід'}</h1>
         <form onSubmit={handleAuth}>
             <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
@@ -187,11 +199,28 @@ function App() {
         <div className="dashboard">
             <Header />
             <h2>Налаштування</h2>
-            <div className="settings-card">
-                <label>Посилання на аватарку:</label>
-                <input type="text" value={user.avatar_url || ''} onChange={e => setUser({...user, avatar_url: e.target.value})} />
+            <div className={`settings-card ${user.is_dark_mode ? '' : 'light-card'}`}>
                 
-                <label>Колір теми:</label>
+                <label>Аватарка:</label>
+                <div className="avatar-upload-container">
+                    {user.avatar_url && <img src={user.avatar_url} className="avatar-preview" />}
+                    {/* Кнопка завантаження файлу */}
+                    <input type="file" accept="image/*" onChange={handleFileChange} />
+                </div>
+
+                <label>Тема застосунку:</label>
+                <div className="theme-toggle">
+                    <button 
+                        className={user.is_dark_mode ? 'active' : ''} 
+                        onClick={() => setUser({...user, is_dark_mode: true})}
+                    >🌙 Темна</button>
+                    <button 
+                        className={!user.is_dark_mode ? 'active' : ''} 
+                        onClick={() => setUser({...user, is_dark_mode: false})}
+                    >☀️ Світла</button>
+                </div>
+                
+                <label>Колір акценту:</label>
                 <div className="color-picker">
                     {['#2196f3', '#4caf50', '#ff9800', '#e91e63', '#9c27b0'].map(c => (
                         <div key={c} className={`color-circle ${user.theme_color === c ? 'selected' : ''}`}
@@ -212,14 +241,16 @@ function App() {
         
         <div className="accounts-grid">
             {accounts.map(acc => (
-                <div key={acc.id} className="account-card" style={{borderColor: user.theme_color}}>
+                <div key={acc.id} className={`account-card ${user.is_dark_mode ? '' : 'light-card'}`} style={{borderColor: user.theme_color}}>
                     <h3>{acc.name}</h3>
-                    <div className="balance">{acc.balance} <small>UAH</small></div>
+                    <div className="balance" style={{color: user.is_dark_mode ? '#fff' : '#000'}}>
+                        {acc.balance} <small>UAH</small>
+                    </div>
                 </div>
             ))}
         </div>
 
-        <div className="transaction-form-container" style={{borderColor: user.theme_color}}>
+        <div className={`transaction-form-container ${user.is_dark_mode ? '' : 'light-card'}`} style={{borderColor: user.theme_color}}>
             <form onSubmit={handleTransaction}>
                 <div className="type-selector">
                     <button type="button" className={type === 'expense' ? 'active expense' : ''} onClick={() => setType('expense')}>📉</button>
@@ -238,7 +269,7 @@ function App() {
             <h3>Історія</h3>
             <ul className="history-list">
                 {transactions.map(t => (
-                    <li key={t.id} className="history-item">
+                    <li key={t.id} className={`history-item ${user.is_dark_mode ? '' : 'light-item'}`}>
                         <div>
                             <b>{t.comment}</b><br/>
                             <small>{t.account_name}</small>
