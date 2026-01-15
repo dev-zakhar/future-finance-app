@@ -544,6 +544,7 @@ nav button {
 /* --- SETTINGS & NEW STYLES --- */
 
 .avatar-preview, .avatar-placeholder-large {
+    text-align: center;
     width: 80px;
     height: 80px;
     border-radius: 50%;
