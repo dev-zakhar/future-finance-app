@@ -8,6 +8,7 @@ function App() {
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('userData')
     try {
+        // 🔥 ЗА ЗАМОВЧУВАННЯМ ТЕМНА (is_dark_mode: true)
         return saved ? JSON.parse(saved) : { email: '', theme_color: '#2196f3', avatar_url: '', is_dark_mode: true }
     } catch (e) {
         return { email: '', theme_color: '#2196f3', avatar_url: '', is_dark_mode: true }
@@ -35,7 +36,6 @@ function App() {
     if (token) refreshData()
   }, [token])
 
-  // Зміна теми на льоту (додає клас до <body>)
   useEffect(() => {
     document.body.className = user.is_dark_mode ? 'dark-theme' : 'light-theme'
   }, [user.is_dark_mode])
@@ -110,15 +110,12 @@ function App() {
     } catch (err) { console.error(err) }
   }
 
-  // Обробка завантаження картинки
   const handleFileChange = (e) => {
       const file = e.target.files[0]
       if (file) {
           if (file.size > 2000000) return alert("Файл завеликий! Максимум 2MB.")
-          
           const reader = new FileReader()
           reader.onloadend = () => {
-              // Перетворюємо картинку в текст і зберігаємо в стан
               setUser({ ...user, avatar_url: reader.result })
           }
           reader.readAsDataURL(file)
@@ -171,7 +168,11 @@ function App() {
         <nav>
             <button onClick={() => setView('dashboard')} style={{opacity: view === 'dashboard' ? 1 : 0.5}}>🏠</button>
             <button onClick={() => setView('settings')} style={{opacity: view === 'settings' ? 1 : 0.5}}>⚙️</button>
-            <button onClick={logout} className="logout-btn">Вихід</button>
+            {/* 🔥 ОНОВЛЕНА КНОПКА ВИХІД */}
+            <button 
+                onClick={logout} 
+                className={`logout-btn ${!user.is_dark_mode ? 'logout-light' : ''}`}
+            >Вийти</button>
         </nav>
     </header>
   )
@@ -201,11 +202,22 @@ function App() {
             <h2>Налаштування</h2>
             <div className={`settings-card ${user.is_dark_mode ? '' : 'light-card'}`}>
                 
-                <label>Аватарка:</label>
-                <div className="avatar-upload-container">
-                    {user.avatar_url && <img src={user.avatar_url} className="avatar-preview" />}
-                    {/* Кнопка завантаження файлу */}
-                    <input type="file" accept="image/*" onChange={handleFileChange} />
+                <label style={{marginBottom: '10px', display: 'block'}}>Аватарка:</label>
+                
+                {/* 🔥 НОВИЙ БЛОК АВАТАРКИ */}
+                <div className="avatar-upload-row">
+                    <div className="avatar-preview-wrapper">
+                         {user.avatar_url ? 
+                            <img src={user.avatar_url} className="avatar-preview" /> : 
+                            <div className="avatar-placeholder-large" style={{background: user.theme_color}}>{user.email[0]}</div>
+                         }
+                    </div>
+                    
+                    {/* Кнопка замість input */}
+                    <label htmlFor="file-upload" className="custom-file-upload">
+                        📷 Змінити фото
+                    </label>
+                    <input id="file-upload" type="file" accept="image/*" onChange={handleFileChange} />
                 </div>
 
                 <label>Тема застосунку:</label>
