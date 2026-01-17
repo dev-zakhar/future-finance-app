@@ -35,38 +35,34 @@ app.get('/db-test', async (req, res) => {
     }
 });
 
-// 3. РЕЄСТРАЦІЯ КОРИСТУВАЧА
+// РЕЄСТРАЦІЯ (З автоматичним створенням рахунків)
 app.post('/register', async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        // Перевірка: чи заповнені поля
-        if (!email || !password) {
-            return res.status(400).json({ error: 'Введіть email та пароль' });
-        }
+        // 1. Створюємо користувача в Supabase Auth
+        const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+        });
 
-        // Перевірка: чи є вже такий юзер
-        const userCheck = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-        if (userCheck.rows.length > 0) {
-            return res.status(400).json({ error: 'Користувач з таким email вже існує' });
-        }
+        if (error) return res.status(400).json({ error: error.message });
 
-        // Шифрування пароля
-        const salt = await bcrypt.genSalt(10);
-        const hash = await bcrypt.hash(password, salt);
+        const userId = data.user.id;
 
-        // Запис нового користувача в базу
-        const newUser = await pool.query(
-            'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, created_at',
-            [email, hash]
-        );
+        // 2. 🔥 МАГІЯ ТУТ: Створюємо стартові рахунки для нового юзера
+        // Ми використовуємо pool.query, щоб записати дані в таблицю accounts
+        await pool.query(`
+            INSERT INTO accounts (user_id, name, balance)
+            VALUES 
+            ($1, 'Готівка', 0.00),
+            ($1, 'Картка', 0.00)
+        `, [userId]);
 
-        // Створення базових гаманців для нового користувача (Бонус!)
-        const userId = newUser.rows[0].id;
-        await pool.query("INSERT INTO accounts (user_id, name, balance) VALUES ($1, 'Готівка', 0)", [userId]);
-        await pool.query("INSERT INTO accounts (user_id, name, balance) VALUES ($1, 'Картка', 0)", [userId]);
-
-        res.json({ message: 'Реєстрація успішна!', user: newUser.rows[0] });
+        res.json({ 
+            message: 'Користувач створений!', 
+            user: { email: data.user.email, id: data.user.id } 
+        });
 
     } catch (err) {
         console.error(err);
